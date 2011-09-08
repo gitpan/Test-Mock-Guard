@@ -21,7 +21,8 @@ no_index:
 requires:
   Class::Load: 0.06
   Exporter: 5.63
+  perl: 5.6.1
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/zigorou/p5-test-mock-guard.git
-version: 0.03
+version: 0.04
