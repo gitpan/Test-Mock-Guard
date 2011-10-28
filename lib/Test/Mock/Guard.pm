@@ -11,7 +11,7 @@ use Scalar::Util qw(blessed refaddr);
 use List::Util qw(max);
 use Carp qw(croak);
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 our @EXPORT = qw(mock_guard);
 
 sub mock_guard {
@@ -49,10 +49,29 @@ sub new {
                 : sub { $method_defs->{$method_name} };
             no strict 'refs';
             no warnings 'redefine';
-            *{"$class_name\::$method_name"} = $mocked_method;
+            *{"$class_name\::$method_name"} = sub {
+                ++$stash->{$class_name}->{$method_name}->{called_count};
+                &$mocked_method;
+            };
         }
     }
     return bless { restore => $restore, object => $object } => $class;
+}
+
+sub call_count {
+    my ($self, $klass, $method_name) = @_;
+
+    if (my $class_name = blessed $klass) {
+        # object
+        my $refaddr = refaddr $klass;
+        my $guard = $self->{object}->{"$class_name#$refaddr"};
+        return $guard->call_count($method_name);
+    } else {
+        # class
+        my $class_name = $klass;
+        return unless exists $stash->{$class_name}->{$method_name};
+        return $stash->{$class_name}->{$method_name}->{called_count};
+    }
 }
 
 sub reset {
@@ -80,6 +99,7 @@ sub _stash {
         counter      => 0,
         restore      => {},
         delete_flags => {},
+        called_count => 0,
     };
     my $index = ++$stash->{$class_name}{$method_name}{counter};
     $stash->{$class_name}{$method_name}{restore}{$index} = $class_name->can($method_name);
@@ -131,6 +151,7 @@ package
 use Scalar::Util qw(blessed refaddr);
 
 my $mocked = {};
+my $counts = {};
 sub new {
     my ($class, $object, $methods) = @_;
     my $klass   = blessed($object);
@@ -143,6 +164,7 @@ sub new {
             no strict 'refs';
             no warnings 'redefine';
             *{"$klass\::$method"} = sub { _mocked($method, @_) };
+            $counts->{$klass}->{$refaddr}->{$method} = 0;
         }
     }
 
@@ -161,11 +183,20 @@ sub reset {
     }
 }
 
+sub call_count {
+    my ($self, $method_name) = @_;
+    my $class_name = blessed $self->{object};
+    my $refaddr    = refaddr $self->{object};
+    return unless exists $counts->{$class_name}->{$refaddr}->{$method_name};
+    return $counts->{$class_name}->{$refaddr}->{$method_name};
+}
+
 sub _mocked {
     my ($method, $object, @rest) = @_;
     my $klass   = blessed($object);
     my $refaddr = refaddr($object);
     if (exists $mocked->{$klass}->{$refaddr} && exists $mocked->{$klass}->{$refaddr}->{$method}) {
+        ++$counts->{$klass}->{$refaddr}->{$method};
         my $val = $mocked->{$klass}->{$refaddr}->{$method};
         ref($val) eq 'CODE' ? $val->($object, @rest) : $val;
     } else {
@@ -226,7 +257,7 @@ Test::Mock::Guard - Simple mock test library using RAII.
 
 =head1 DESCRIPTION
 
-Test::Mock::Guard is mock test library using RAII. 
+Test::Mock::Guard is mock test library using RAII.
 This module is able to change method behavior by each scope. See SYNOPSIS's sample code.
 
 =head1 EXPORT FUNCTION
@@ -282,11 +313,17 @@ You can mock instance methods as well as class methods (this feature was provide
 
 See L</mock_guard> definition.
 
+=head2 call_count( $class_name_or_object, $method_name )
+
+Returns a number of calling of $method_name in $class_name_or_object.
+
 =head1 AUTHOR
 
 Toru Yamaguchi E<lt>zigorou@cpan.orgE<gt>
 
 Yuji Shimada E<lt>xaicron at cpan.orgE<gt>
+
+Masaki Nakagawa E<lt>masaki@cpan.orgE<gt>
 
 =head1 THANKS TO
 
