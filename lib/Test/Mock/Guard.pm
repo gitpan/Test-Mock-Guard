@@ -7,11 +7,11 @@ use 5.006001;
 
 use Exporter qw(import);
 use Class::Load qw(load_class);
-use Scalar::Util qw(blessed refaddr);
+use Scalar::Util qw(blessed refaddr set_prototype);
 use List::Util qw(max);
 use Carp qw(croak);
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 our @EXPORT = qw(mock_guard);
 
 sub mock_guard {
@@ -47,12 +47,17 @@ sub new {
             my $mocked_method = ref $method_defs->{$method_name} eq 'CODE'
                 ? $method_defs->{$method_name}
                 : sub { $method_defs->{$method_name} };
+
+            my $fully_qualified_method_name = "$class_name\::$method_name";
+            my $prototype = prototype($fully_qualified_method_name);
+
             no strict 'refs';
-            no warnings qw(redefine prototype);
-            *{"$class_name\::$method_name"} = sub {
+            no warnings 'redefine';
+
+            *{$fully_qualified_method_name} = set_prototype(sub {
                 ++$stash->{$class_name}->{$method_name}->{called_count};
                 &$mocked_method;
-            };
+            }, $prototype);
         }
     }
     return bless { restore => $restore, object => $object } => $class;
@@ -64,9 +69,10 @@ sub call_count {
     if (my $class_name = blessed $klass) {
         # object
         my $refaddr = refaddr $klass;
-        my $guard = $self->{object}->{"$class_name#$refaddr"};
+        my $guard = $self->{object}->{"$class_name#$refaddr"} || return undef;
         return $guard->call_count($method_name);
-    } else {
+    }
+    else {
         # class
         my $class_name = $klass;
         return unless exists $stash->{$class_name}->{$method_name};
