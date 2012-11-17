@@ -1,0 +1,31 @@
+---
+abstract: 'Simple mock test library using RAII.'
+author:
+  - 'Toru Yamaguchi <zigorou@cpan.org>'
+build_requires:
+  ExtUtils::MakeMaker: 6.59
+  Test::More: 0.96
+configure_requires:
+  ExtUtils::MakeMaker: 6.59
+distribution_type: module
+dynamic_config: 1
+generated_by: 'Module::Install version 1.06'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Test-Mock-Guard
+no_index:
+  directory:
+    - inc
+    - t
+    - xt
+requires:
+  Class::Load: 0.06
+  Exporter: 5.63
+  perl: 5.6.1
+resources:
+  bugtracker: https://github.com/zigorou/p5-test-mock-guard/issues
+  license: http://dev.perl.org/licenses/
+  repository: https://github.com/zigorou/p5-test-mock-guard
+version: 0.09

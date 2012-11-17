@@ -11,7 +11,7 @@ use Scalar::Util qw(blessed refaddr set_prototype);
 use List::Util qw(max);
 use Carp qw(croak);
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 our @EXPORT = qw(mock_guard);
 
 sub mock_guard {
@@ -69,7 +69,8 @@ sub call_count {
     if (my $class_name = blessed $klass) {
         # object
         my $refaddr = refaddr $klass;
-        my $guard = $self->{object}->{"$class_name#$refaddr"} || return undef;
+        my $guard = $self->{object}->{"$class_name#$refaddr"}
+            || return undef; ## no critic
         return $guard->call_count($method_name);
     }
     else {
